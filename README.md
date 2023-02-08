@@ -1,0 +1,32 @@
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+# gwasHelper
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+The goal of gwasHelper is to provide an interface to handle common
+downstream analysis of gwas summary statistics. It is build on top of
+the [cleansumstats](https://github.com/BioPsyk/cleansumstats) pipeline.
+
+The cleansumstats provideds a consistent set of column names for postQC
+gwas summary statistics. As such, writing code for downstreams analysis
+is much easier.
+
+The gwasHelper package assumes that the existence of a folder with a
+specific substructure, where each subfolder is one cleaned summary
+statistic.
+
+## Installation
+
+You can install the development version of gwasHelper like so:
+
+``` r
+install_github("ararder/gwasHelper)
+```
+
+``` r
+library(gwasHelper)
+## Example code is coming!
+```
