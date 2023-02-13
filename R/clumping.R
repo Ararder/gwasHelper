@@ -2,10 +2,12 @@ utils::globalVariables(c("POS", "tmp", "chr", "start", "end", "N", "P", "SNP"))
 
 run_clumping <- function(infile, outdir) {
   stopifnot(!missing(outdir))
-  # infile corresponds to a GWAS sumstats
-  # outdir to
 
+  # create plink job
   plink <- clump_plink(infile, outdir)
+
+  # to merge nearby loci with bedtools, we need to change format. see ranges_to_bed
+  # in this document.
   format_munge <- glue::glue("R -e 'gwasHelper::ranges_to_bed(commandArgs(trailingOnly = TRUE)[1],commandArgs(trailingOnly=TRUE)[2])'") %>%
     paste0(" --args", " ", fs::path(outdir, "clumps.clumped.ranges"), " ", fs::path(outdir, "clumps.bed"))
 
