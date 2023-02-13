@@ -4,9 +4,9 @@ run_clumping <- function(infile, outdir) {
   stopifnot(!missing(outdir))
   # infile corresponds to a GWAS sumstats
   # outdir to
-commandArgs(trailingOnly = TRUE)
+
   plink <- clump_plink(infile, outdir)
-  format_munge <- glue::glue("R -e 'gwasHelper::ranges_to_bed(commandArgs(trailingOnly = TRUE)[1],commandArgs(trailingOnly=True)[2])'") %>%
+  format_munge <- glue::glue("R -e 'gwasHelper::ranges_to_bed(commandArgs(trailingOnly = TRUE)[1],commandArgs(trailingOnly=TRUE)[2])'") %>%
     paste0(" --args", " ", fs::path(outdir, "clumps.clumped.ranges"), " ", fs::path(outdir, "clumps.bed"))
 
   bed_i <- fs::path(outdir, "clumps.bed")
@@ -52,7 +52,7 @@ clump_plink <- function(
 #' @param infile a clumping.ranges file from plink --clump
 #' @param out filename of output
 #'
-#' @return
+#' @return a character vector of commandline code
 #' @export
 #'
 #' @examples \dontrun{
