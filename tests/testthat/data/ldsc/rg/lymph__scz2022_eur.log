@@ -1,0 +1,65 @@
+*********************************************************************
+* LD Score Regression (LDSC)
+* Version 1.0.1
+* (C) 2014-2019 Brendan Bulik-Sullivan and Hilary Finucane
+* Broad Institute of MIT and Harvard / MIT Department of Mathematics
+* GNU General Public License v3
+*********************************************************************
+Call: 
+./ldsc.py \
+--ref-ld-chr /nas/depts/007/sullilab/shared/bin/ldsc/eur_w_ld_chr/ \
+--out /nas/depts/007/sullilab/shared/gwas_sumstats/test_rg/lymph__scz2022_eur \
+--rg /nas/depts/007/sullilab/shared/gwas_sumstats/run2/lymph/lymph/analysis/ldsc/ldsc.sumstats.gz,/nas/depts/007/sullilab/shared/gwas_sumstats/run2/scz2022_eur/scz2022_eur/analysis/ldsc/ldsc.sumstats.gz \
+--w-ld-chr /nas/depts/007/sullilab/shared/bin/ldsc/eur_w_ld_chr/ 
+
+Beginning analysis at Wed Feb  8 10:22:48 2023
+Reading summary statistics from /nas/depts/007/sullilab/shared/gwas_sumstats/run2/lymph/lymph/analysis/ldsc/ldsc.sumstats.gz ...
+Read summary statistics for 1171287 SNPs.
+Reading reference panel LD Score from /nas/depts/007/sullilab/shared/bin/ldsc/eur_w_ld_chr/[1-22] ... (ldscore_fromlist)
+Read reference panel LD Scores for 1293150 SNPs.
+Removing partitioned LD Scores with zero variance.
+Reading regression weight LD Score from /nas/depts/007/sullilab/shared/bin/ldsc/eur_w_ld_chr/[1-22] ... (ldscore_fromlist)
+Read regression weight LD Scores for 1293150 SNPs.
+After merging with reference panel LD, 1167577 SNPs remain.
+After merging with regression SNP LD, 1167577 SNPs remain.
+Computing rg for phenotype 2/2
+Reading summary statistics from /nas/depts/007/sullilab/shared/gwas_sumstats/run2/scz2022_eur/scz2022_eur/analysis/ldsc/ldsc.sumstats.gz ...
+Read summary statistics for 1217311 SNPs.
+After merging with summary statistics, 1167577 SNPs remain.
+1127421 SNPs with valid alleles.
+
+Heritability of phenotype 1
+---------------------------
+Total Observed scale h2: 0.2455 (0.0247)
+Lambda GC: 1.8405
+Mean Chi^2: 3.3246
+Intercept: 1.1549 (0.0554)
+Ratio: 0.0666 (0.0238)
+
+Heritability of phenotype 2/2
+-----------------------------
+Total Observed scale h2: 0.3736 (0.016)
+Lambda GC: 1.7767
+Mean Chi^2: 2.0934
+Intercept: 1.0696 (0.0163)
+Ratio: 0.0636 (0.0149)
+
+Genetic Covariance
+------------------
+Total Observed scale gencov: 0.0244 (0.0105)
+Mean z1*z2: 0.1411
+Intercept: -0.0274 (0.0156)
+
+Genetic Correlation
+-------------------
+Genetic Correlation: 0.0807 (0.0323)
+Z-score: 2.4975
+P: 0.0125
+
+
+Summary of Genetic Correlation Results
+p1                                                                                                        p2      rg      se       z       p  h2_obs  h2_obs_se  h2_int  h2_int_se  gcov_int  gcov_int_se
+/nas/depts/007/sullilab/shared/gwas_sumstats/run2/lymph/lymph/analysis/ldsc/ldsc.sumstats.gz  /nas/depts/007/sullilab/shared/gwas_sumstats/run2/scz2022_eur/scz2022_eur/analysis/ldsc/ldsc.sumstats.gz  0.0807  0.0323  2.4975  0.0125  0.3736      0.016  1.0696     0.0163   -0.0274       0.0156
+
+Analysis finished at Wed Feb  8 10:23:19 2023
+Total time elapsed: 31.09s

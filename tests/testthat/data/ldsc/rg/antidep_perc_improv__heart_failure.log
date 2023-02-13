@@ -1,0 +1,67 @@
+*********************************************************************
+* LD Score Regression (LDSC)
+* Version 1.0.1
+* (C) 2014-2019 Brendan Bulik-Sullivan and Hilary Finucane
+* Broad Institute of MIT and Harvard / MIT Department of Mathematics
+* GNU General Public License v3
+*********************************************************************
+Call: 
+./ldsc.py \
+--ref-ld-chr /nas/depts/007/sullilab/shared/bin/ldsc/eur_w_ld_chr/ \
+--out /nas/depts/007/sullilab/shared/gwas_sumstats/test_rg/antidep_perc_improv__heart_failure \
+--rg /nas/depts/007/sullilab/shared/gwas_sumstats/run2/antidep_perc_improv/antidep_perc_improv/analysis/ldsc/ldsc.sumstats.gz,/nas/depts/007/sullilab/shared/gwas_sumstats/run2/heart_failure/heart_failure/analysis/ldsc/ldsc.sumstats.gz \
+--w-ld-chr /nas/depts/007/sullilab/shared/bin/ldsc/eur_w_ld_chr/ 
+
+Beginning analysis at Tue Feb  7 14:30:42 2023
+Reading summary statistics from /nas/depts/007/sullilab/shared/gwas_sumstats/run2/antidep_perc_improv/antidep_perc_improv/analysis/ldsc/ldsc.sumstats.gz ...
+Read summary statistics for 906081 SNPs.
+Reading reference panel LD Score from /nas/depts/007/sullilab/shared/bin/ldsc/eur_w_ld_chr/[1-22] ... (ldscore_fromlist)
+Read reference panel LD Scores for 1293150 SNPs.
+Removing partitioned LD Scores with zero variance.
+Reading regression weight LD Score from /nas/depts/007/sullilab/shared/bin/ldsc/eur_w_ld_chr/[1-22] ... (ldscore_fromlist)
+Read regression weight LD Scores for 1293150 SNPs.
+After merging with reference panel LD, 904838 SNPs remain.
+After merging with regression SNP LD, 904838 SNPs remain.
+Computing rg for phenotype 2/2
+Reading summary statistics from /nas/depts/007/sullilab/shared/gwas_sumstats/run2/heart_failure/heart_failure/analysis/ldsc/ldsc.sumstats.gz ...
+Read summary statistics for 1217311 SNPs.
+After merging with summary statistics, 904838 SNPs remain.
+886898 SNPs with valid alleles.
+
+Heritability of phenotype 1
+---------------------------
+Total Observed scale h2: -0.0336 (0.0495)
+Lambda GC: 1.0105
+Mean Chi^2: 1.0059
+Intercept: 1.0141 (0.0092)
+Ratio: 2.3783 (1.5628)
+
+Heritability of phenotype 2/2
+-----------------------------
+Total Observed scale h2: 0.0074 (0.0007)
+Lambda GC: 1.1428
+Mean Chi^2: 1.1766
+Intercept: 1.0158 (0.0104)
+Ratio: 0.0892 (0.0591)
+
+Genetic Covariance
+------------------
+Total Observed scale gencov: -0.0014 (0.0038)
+Mean z1*z2: -0.0024
+Intercept: 0.0003 (0.0063)
+
+Genetic Correlation
+-------------------
+Genetic Correlation: nan (nan) (h2  out of bounds) 
+Z-score: nan (nan) (h2  out of bounds)
+P: nan (nan) (h2  out of bounds)
+WARNING: One of the h2's was out of bounds.
+This usually indicates a data-munging error or that h2 or N is low.
+
+
+Summary of Genetic Correlation Results
+p1                                                                                                            p2  rg  se   z   p  h2_obs  h2_obs_se  h2_int  h2_int_se  gcov_int  gcov_int_se
+/nas/depts/007/sullilab/shared/gwas_sumstats/run2/antidep_perc_improv/antidep_perc_improv/analysis/ldsc/ldsc.sumstats.gz  /nas/depts/007/sullilab/shared/gwas_sumstats/run2/heart_failure/heart_failure/analysis/ldsc/ldsc.sumstats.gz  NA  NA  NA  NA  0.0074     0.0007  1.0158     0.0104    0.0003       0.0063
+
+Analysis finished at Tue Feb  7 14:31:04 2023
+Total time elapsed: 22.33s

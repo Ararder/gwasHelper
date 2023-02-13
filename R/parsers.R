@@ -8,10 +8,10 @@ parse_ldsc_h2 <- function(path) {
   df <- readLines(path)
 
   if(length(df) != 32){
-    return(dplyr::tibble(dataset_name=NA_character_, obs_h2=NA_character_,
-                         obs_se=NA_character_, lambda=NA_character_,
-                         mean_chi2=NA_character_, intercept=NA_character_,
-                         intercept_se=NA_character_, ratio=NA_character_))
+    return(dplyr::tibble(dataset_name=NA_character_, obs_h2=NA_real_,
+                         obs_se=NA_real_, lambda=NA_real_,
+                         mean_chi2=NA_real_, intercept=NA_real_,
+                         intercept_se=NA_real_, ratio=NA_real_))
   }
 
   obs_h2 <- as.numeric(stringr::str_extract(df[26], "\\d{1}\\.\\d{1,5}"))
@@ -38,56 +38,75 @@ parse_ldsc_h2 <- function(path) {
   dplyr::tibble(dataset_name, obs_h2, obs_se, lambda, mean_chi2, intercept, intercept_se, ratio)
 }
 
-# get_sbayes_h2 <- function(path){
-#   res <- read_tsv(path) %>%
-#     slice(9) %>%
-#     pull(1) %>%
-#     str_extract_all("\\d{1}\\.\\d{1,6}") %>%
-#     .[[1]]
-#   tibble(dataset_name = get_analysis_phenotype(path), sbayes_h2 = res[1], sbayes_h2_se = res[2])
-# }
-#
-#
-# collect_sbayes <- function(dir = "/nas/depts/007/sullilab/shared/gwas_sumstats/run2"){
-#   map_df(dir_ls(dir, glob ="*parRes", recurse=TRUE), get_sbayes_h2) %>%
-#     mutate(across(c(2,3), as.double))
-# }
-#
-# collect_ldsc <- function(dir = "/nas/depts/007/sullilab/shared/gwas_sumstats/run2"){
-#   map_df(dir_ls(dir, glob ="*ldsc_h2.log", recurse=TRUE), get_ldsc_h2)
-# }
-#
-#
-# get_cleaned_sumstats <- function(dir = "/nas/depts/007/sullilab/shared/gwas_sumstats/run2"){
-#   tibble(clean = dir_ls(dir, glob ="*cleaned_GRCh38.gz", recurse=TRUE)) %>%
-#     dplyr::mutate(dataset_name = path_file(path_dir(clean))) %>%
-#     dplyr::select(2,1)
-# }
-#
-# dir_ls("run2", glob = "*sig_snps.tsv", recurse=TRUE)
-# get_sig_snps <- function(path){
-#   dataset_name = get_analysis_phenotype(path)
-#   read_tsv(path) %>%
-#     mutate(dataset_name = dataset_name) %>%
-#     select(2,1)
-# }
-# collect_sig_snps <- function(dir = "/nas/depts/007/sullilab/shared/gwas_sumstats/run2"){
-#   map_df(dir_ls(dir, glob = "*sig_snps.tsv", recurse=TRUE), get_sig_snps)
-# }
-#
-#
-#
-# collect_loci <- function(dir = "/nas/depts/007/sullilab/shared/gwas_sumstats/run2"){
-#   get_loci <- function(path) {
-#     tibble(
-#       dataset_name = get_analysis_phenotype(path),
-#       n_loci = length(readLines(path))
-#     )
-#
-#   }
-#   map_df(dir_ls(dir, glob = "*n_loci.bedtools", recurse=TRUE), get_loci)
-# }
-#
+parse_ldsc_rg <- function(path){
+  strings <- readLines(path)
+
+  if(length(strings) != 65) {
+    return(dplyr::tibble(pheno1 = NA_character_, pheno2 = NA_character_, rg=NA_real_, rg_se=NA_real_, p = NA_real_))
+  }
+
+
+  pheno1 <- fs::path_file(path) %>%
+    stringr::str_remove(".log") %>%
+    stringr::str_split("__") %>% .[[1]] %>%
+    .[1]
+
+  pheno2 <- fs::path_file(path) %>%
+    stringr::str_remove(".log") %>%
+    stringr::str_split("__") %>% .[[1]] %>%
+    .[2]
+
+
+  rg <- strings[55] %>%
+    stringr::str_remove("Genetic Correlation: ") %>%
+    stringr::str_split(" \\(") %>% .[[1]] %>%
+    stringr::str_remove("\\)") %>% .[1] %>%
+    as.numeric()
+
+  rg_se <- strings[55] %>%
+    stringr::str_remove("Genetic Correlation: ") %>%
+    stringr::str_split(" \\(") %>% .[[1]] %>%
+    stringr::str_remove("\\)") %>% .[2] %>%
+    as.numeric()
+
+  p <- strings[57] %>%
+    stringr::str_remove("P: ") %>%
+    as.numeric()
+
+
+  dplyr::tibble(pheno1, pheno2,rg, rg_se, p)
+}
+
+parse_sbayes_parres <- function(path){
+  file <- readr::read_tsv(path)
+
+  if(length(readLines(path)) != 11) {
+    message("non-standard file format. Returning NA")
+    return(dplyr::tibble(dataset_name = NA_character_, sbayes_h2 = NA_real_, sbayes_h2_se = NA_real_))
+  }
+
+  res <- file %>%
+    dplyr::slice(9) %>%
+    dplyr::pull(1) %>%
+    stringr::str_extract_all("\\d{1}\\.\\d{1,6}") %>%
+    .[[1]]
+  dplyr::tibble(dataset_name = get_analysis_phenotype(path), sbayes_h2 = as.numeric(res[1]), sbayes_h2_se = as.numeric(res[2]))
+}
+
+parse_clumping <- function(path) {
+  dplyr::tibble(
+    dataset_name = get_analysis_phenotype(path),
+    n_loci = length(readLines(path))
+  )
+}
+
+parse_sig_snps <- function(path){
+  dataset_name = get_analysis_phenotype(path)
+  readr::read_tsv(path) %>%
+    dplyr::mutate(dataset_name = dataset_name) %>%
+    dplyr::select(2,1)
+}
+
 #
 #
 # unique_order <- function(string1, string2) {

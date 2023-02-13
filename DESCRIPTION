@@ -10,10 +10,15 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports: 
+    data.table,
     dplyr,
     fs,
+    glue,
     magrittr,
-    stringr
+    purrr,
+    readr,
+    stringr,
+    yaml
 RoxygenNote: 7.2.2
 Suggests: 
     testthat (>= 3.0.0)
