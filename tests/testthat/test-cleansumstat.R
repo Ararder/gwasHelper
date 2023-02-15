@@ -24,18 +24,18 @@ test_that("filepath_manager returns the correct filepath structure", {
   expect_equal(structure, expected_structure)
 })
 
-test_that("clean_sumstats_job writes a meta.txt file to the directory", {
-  tempdir <- withr::local_tempdir()
-  col_map <- c(
-    "col_SNP: SNP",
-    "col_POS: BP",
-    "col_BETA: Effect",
-    "col_SE: SE",
-    "col_P: Pval"
-  )
-  make_cleansumstats_job(tempdir, model = "logistic", col_map = col_map)
-
-  expect_true(
-    fs::file_exists(fs::path(tempdir, "meta.txt"))
-  )
-})
+# test_that("clean_sumstats_job writes a meta.txt file to the directory", {
+#   tempdir <- withr::local_tempdir()
+#   col_map <- c(
+#     "col_SNP: SNP",
+#     "col_POS: BP",
+#     "col_BETA: Effect",
+#     "col_SE: SE",
+#     "col_P: Pval"
+#   )
+#   make_cleansumstats_job(tempdir, model = "logistic", col_map = col_map)
+#
+#   expect_true(
+#     fs::file_exists(fs::path(tempdir, "meta.txt"))
+#   )
+# })

@@ -1,20 +1,40 @@
-clean_sumstats <- function(infile, col_map, name,model = "logistic") {
+#' Title
+#'
+#' @param infile raw gwas sumstat to clean
+#' @param col_map map of column names
+#' @param name gwas sumstat name
+#' @param model logistic/linear
+#'
+#' @return a filepath to the slurm job
+#' @export
+#'
+#' @examples \dontrun{
+#' clean_sumstats("my_raw_gwas.tsv.gz",name =  "mdd2024",col_map = col_map)
+#' }
+clean_sumstats <- function(infile, col_map, name, model = "logistic") {
   if(missing(name)) {
     paths <- filepath_manager(infile)
+
+    sbayes_job <- glue::glue("Rscript -e 'gwasHelper::sbayes_run(gwasHelper::filepath_manager(commandArgs(trailingOnly=TRUE)))'") %>%
+      glue::glue(" --args {infile}")
   } else {
     paths <- filepath_manager(infile, name)
+
+    sbayes_job <- glue::glue("Rscript -e 'gwasHelper::sbayes_run(gwasHelper::filepath_manager(commandArgs(trailingOnly=TRUE)[1],commandArgs(trailingOnly=TRUE)[2]))'") %>%
+      glue::glue(" --args {infile} {name}")
   }
 
 
+
   # create the new folder, and copy over the file
-  fs::file_copy(infile, fs::dir_create(paths[["base"]]))
+  fs::file_copy(infile, fs::path(fs::dir_create(paths[["base"]]), fs::path_file(infile)))
 
   # create the slurm header for the job
-  slurm_header <- create_slurm_header(paths[["base"]])
+  slurm_header <- slurm_header(time=3, mem = 4, output_dir = paths[["base"]])
 
   # create the cleansumstats job --> will also writeout metadata file
   cleansumstats_job <- make_cleansumstats_job(
-    paths[["base"]],
+    paths,
     model = model,
     col_map = col_map
   )
@@ -33,7 +53,7 @@ clean_sumstats <- function(infile, col_map, name,model = "logistic") {
 
   # calculate sig sns
   sig_snps <- glue::glue(
-  "R -e ",
+  "Rscript -e ",
   "'readr::write_tsv(dplyr::tibble(n_sig = nrow(dplyr::filter(data.table::fread(commandArgs(trailingOnly=TRUE)[1]), P < 5e-08))),commandArgs(trailingOnly=TRUE)[2])'",
   " --args {paths[['clean']]} {paths[['sig_snps']]}"
   )
@@ -41,42 +61,55 @@ clean_sumstats <- function(infile, col_map, name,model = "logistic") {
   cleanup <- glue::glue(
     "rm {paths[['raw']]}"
   )
-  # SbayesR (?)
+  # code to sbatch sbayes
+  sbatch_sbayes <- glue::glue("sbatch {paths[['sbayes_slurm_path']]}")
 
-  c(slurm_header, cleansumstats_job, create_dirs, ldsc_job,
-    clump_job, sig_snps, cleanup)
+  captured <- c(slurm_header, cleansumstats_job, create_dirs, ldsc_job,
+    clump_job,sbayes_job,sbatch_sbayes, sig_snps, cleanup)
+
+  writeLines(captured, paths[["base_job"]])
+
+  paths[["base_job"]]
 }
 
 
-make_cleansumstats_job <- function(dir, model, col_map) {
+make_cleansumstats_job <- function(paths, model, col_map) {
   # setup and create the metadata file, and write it to the directory
   header <- c(
     "cleansumstats_metafile_kind: minimal",
-    glue::glue("path_sumStats: {fs::path_file(dir)}"),
+    glue::glue("path_sumStats: {fs::path_file(paths[['raw']])}"),
     glue::glue("stats_Model: {model}")
   )
   # col_map is passed
-  writeLines(c(header, col_map), fs::path(dir, "meta.txt"))
-
+  writeLines(c(header, col_map), paths[['metafile']])
+  paths[['metafile']]
   glue::glue(
     "{Sys.getenv('cleanSumstats')}/cleansumstats.sh ",
-    "-i {fs::path(dir, 'meta.txt')} ",
+    "-i {paths[['metafile']]} ",
     "-d {Sys.getenv('cleanSumstats')}/out_dbsnp ",
     "-k {Sys.getenv('cleanSumstats')}/out_1kgp ",
-    "-o {dir}/{fs::path_file(dir)}",
+    "-o {paths[['cleaned_dir']]}",
   )
 }
 
-create_slurm_header <- function(dir) {
-  c(
-    "#!/bin/bash",
-    "#SBATCH --time=3:00:00",
-    "#SBATCH --mem=10g",
-    glue::glue("#SBATCH --output={dir}/slurm-%j.out")
-  )
-}
 
-filepath_manager <- function(infile, dir=Sys.getenv("gwasHelper_repo"), name) {
+
+#' Title
+#'
+#' @param infile gwas sumstat to clean
+#' @param dir directory used to store cleaned sumstats
+#' @param name optional: name to call the sumstat
+#'
+#' @return a list of filepaths
+#' @export
+#'
+#' @examples \dontrun{
+#' path <- filepath_manager("adhd_2023.tsv.gz", "adhd_pgc2023")
+#' }
+filepath_manager <- function(infile, name,dir) {
+  if(missing(dir)) {
+    dir <- Sys.getenv("gwasHelper_repo")
+  }
   if(missing(name)) {
     name <- fs::path_ext_remove(fs::path_ext_remove(fs::path_ext_remove(fs::path_file(infile))))
   }
@@ -103,7 +136,7 @@ filepath_manager <- function(infile, dir=Sys.getenv("gwasHelper_repo"), name) {
 
   sbayes_dir <-   fs::path(analysis_dir, "sbayesr")
   sbayes_ma <-   fs::path(analysis_dir, "sbayesr", "cleaned.ma")
-  sbayes_slurm_path = fs::path(analysis_dir, "sbayesr", paste0("sbayes", "_", paths[["dataset_name"]], ".sh"))
+  sbayes_slurm_path = fs::path(analysis_dir, "sbayesr", paste0("sbayes", "_", dataset_name, ".sh"))
   clumping_dir <- fs::path(analysis_dir, "clumping")
 
 
@@ -133,6 +166,35 @@ filepath_manager <- function(infile, dir=Sys.getenv("gwasHelper_repo"), name) {
 }
 
 
+#' Title
+#'
+#' @param col_CHR chromosome
+#' @param col_POS position
+#' @param col_BETA effect column (beta or odds ratio)
+#' @param col_SNP rsid column
+#' @param col_EffectAllele effect allele
+#' @param col_SE standard error
+#' @param col_Z Z score
+#' @param col_OR odds ratio
+#' @param col_N sample size
+#' @param col_CaseN case sample size
+#' @param col_ControlN control sample size
+#' @param col_EAF allele frequency of effect allele
+#' @param col_INFO info column
+#' @param col_StudyN development column, dont use
+#' @param col_OtherAllele other allele
+#' @param col_P P value
+#' @param stats_CaseN case sample size for entire study(not per snp)
+#' @param stats_ControlN control sample size for entire study (not per snp)
+#' @param stats_StudyN (sample size for entire study - not per snp)
+#'
+#' @return a col_map to use with clean_sumstats
+#' @export
+#'
+#' @examples \dontrun{
+#' col_map(col_CHR = "CHR")
+#' }
+#'
 match_cols <- function(
   col_CHR = NULL, col_POS = NULL, col_BETA = NULL,
   col_SNP = NULL, col_EffectAllele = NULL,

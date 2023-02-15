@@ -1,26 +1,43 @@
-paths <- filepath_manager("scz2022_eur")
-sbayes_cleansumstats <- function(paths) {
-  # wrapper for generating commandline code
-  code <- glue::glue("gwasHelper::prepare_ma('{paths[['clean']]}', '{paths[['sbayes_ma']]}')")
-  cleaning <- glue::glue("Rscript -e {code}")
+utils::globalVariables(c("EAF", "RSID", "EffectAllele", "OtherAllele", "B", "SE", ".data", "INFO", "ControlN", "CaseN"))
+#' Title
+#'
+#' @param paths a list of filepaths, created with filepath_manager()
+#'
+#' @return a path to a .sh txt file
+#' @export
+#'
+#' @examples \dontrun{
+#' sbayes_run(filepath_manager("adhd_2023.tsv.gz"))
+#' }
+sbayes_run <- function(paths) {
 
+
+  args <- glue::glue("{paths[['clean']]} {paths[['sbayes_ma']]}")
+  inside <- glue::glue("commandArgs(trailingOnly=TRUE)[1],commandArgs(trailingOnly=TRUE)[2]")
+  cleaning <- glue::glue("Rscript -e ","'gwasHelper::prepare_ma({inside})'", " --args {args}")
+
+
+  # Captures code to run sbayesr from commandline
   sbayes_code <- gctb_sbayesr(
     infile = paths[["sbayes_ma"]],
     name = paths[['dataset_name']],
     out  = paths[['sbayes_dir']]
     )
 
-  # make slurm header
-  header <- slurm_header(24, 40, Sys.getenv("SLURM_JOB_ID"))
+  # slurm header
+  if(Sys.getenv("SLURM_JOB_ID") == ""){
+    header <- slurm_header(time = 24, mem=40, output_dir = paths[["sbayes_dir"]])
+  } else {
+    header <- slurm_header(time = 24, mem=40, output_dir = paths[["sbayes_dir"]], Sys.getenv("SLURM_JOB_ID"))
+  }
+
 
   # write slurm job
-
+  fs::dir_create(paths[["sbayes_dir"]])
   writeLines(
     c(header, "\n", cleaning, "\n", sbayes_code),
-    paths[["sbayes_slurm_path"]],
-  )
-
-  # system(glue("sbatch {paths[['sbayes_slurm_path']]"))
+    paths[["sbayes_slurm_path"]]
+    )
 }
 
 #' Title
@@ -46,7 +63,7 @@ prepare_ma <- function(path, out, N, freq_path=Sys.getenv("freq1000g")) {
   if(!missing(N)) {
     df <- sbayes_filters(df, N, freq_path)
   } else {
-    df <- sbayes_filters(df, freq_path)
+    df <- sbayes_filters(df,freq_path = freq_path)
   }
   # Which allele frequencies to apply if missing?
 
@@ -65,24 +82,24 @@ sbayes_filters <- function(df, N, freq_path){
   # Apply filters on allele frequency and INFO if those columns exist
 
   if(!"EAF" %in% colnames(df)) {
-    freq <- read_tsv(freq_path)
+    message("Frequency missing. Adding 1000kg eur freq")
+    freq <- readr::read_tsv(freq_path)
     df <- add_1000g_freq(df)
-    print("Frequency missing. Adding 1000kg eur freq")
   }
 
-  df <- filter(df, EAF >= 0.01 & EAF <= 0.99)
+  df <- dplyr::filter(df, .data[["EAF"]] >= 0.01 & .data[["EAF"]] <= 0.99)
 
   if("INFO" %in% colnames(df)) {
     print("INFO detected. Filtering to INFO >= 0.9")
-    df <- filter(df, INFO >= 0.9)
+    df <- dplyr::filter(df, INFO >= 0.9)
   }
 
   if(!missing(N)){
-    df <- mutate(df, N = {{ N }})
+    df <- dplyr::mutate(df, N = {{ N }})
   }
 
   if(all(c("ControlN", "CaseN") %in% colnames(df))) {
-    df <- mutate(df, N = ControlN + CaseN)
+    df <- dplyr::mutate(df, N = ControlN + CaseN)
   }
 
   df
@@ -90,11 +107,11 @@ sbayes_filters <- function(df, N, freq_path){
 
 add_1000g_freq <- function(df, freq) {
 
-  matching <- inner_join(df,freq,by = c("RSID" = "SNP", "EffectAllele" = "A1", "OtherAllele"= "A2"))
-  flipped <- inner_join(df,freq,by = c("RSID" = "SNP", "EffectAllele" = "A2","OtherAllele" = "A1")) %>%
-    mutate(EAF = 1-EAF)
+  matching <- dplyr::inner_join(df,freq,by = c("RSID" = "SNP", "EffectAllele" = "A1", "OtherAllele"= "A2"))
+  flipped <- dplyr::inner_join(df,freq,by = c("RSID" = "SNP", "EffectAllele" = "A2","OtherAllele" = "A1")) %>%
+    dplyr::mutate(EAF = 1-EAF)
 
-  bind_rows(matching,flipped)
+  dplyr::bind_rows(matching,flipped)
 
 }
 

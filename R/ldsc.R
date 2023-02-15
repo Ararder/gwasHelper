@@ -39,14 +39,14 @@ ldsc_col_checker <- function(path) {
   add <- list()
 
   # Check if to us B or Z for ldsc
-  if(purrr::has_element(metadata, "BETA")) {
+  if("col_OR" %in% names(metadata) | "col_BETA" %in% names(metadata)) {
     add[[1]] <- glue::glue("--signed-sumstats B,0 ")
   } else {
     add[[1]] <- glue::glue("--signed-sumstats Z,0 ")
   }
 
   #  If possible use case-control sample size.
-  if(purrr::has_element(metadata, "col_CaseN") & purrr::has_element(metadata, "col_CaseN")){
+  if("col_CaseN" %in% names(metadata) & "col_ControlN" %in% names(metadata)){
     add <- c(add,
       glue::glue("--N-cas-col CaseN "),
       glue::glue("--N-con-col ControlN ")
