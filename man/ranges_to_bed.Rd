@@ -2,7 +2,7 @@
 % Please edit documentation in R/clumping.R
 \name{ranges_to_bed}
 \alias{ranges_to_bed}
-\title{Conver the clumping.ranges format from plink --clump to bed compatible format}
+\title{Convert the clumping.ranges format from plink --clump to bed compatible format}
 \usage{
 ranges_to_bed(infile, out)
 }
@@ -15,7 +15,7 @@ ranges_to_bed(infile, out)
 a character vector of commandline code
 }
 \description{
-Conver the clumping.ranges format from plink --clump to bed compatible format
+Convert the clumping.ranges format from plink --clump to bed compatible format
 }
 \examples{
 \dontrun{

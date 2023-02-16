@@ -73,7 +73,7 @@ Title
 }
 \examples{
 \dontrun{
-col_map(col_CHR = "CHR")
+match_cols(col_CHR = "CHR")
 }
 
 }

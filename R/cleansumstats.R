@@ -40,32 +40,24 @@ clean_sumstats <- function(infile, col_map, name, model = "logistic") {
   )
 
   # initialize output folders for secondary analysis
-  create_dirs <- glue::glue(
-    "mkdir -p {paths[['ldsc_dir']]}",
-    " {paths[['clumping_dir']]}",
+  create_dirs <- initialize_folder_structure(paths)
 
-  )
   # LDSC
   ldsc_job <- run_ldsc(paths)
 
   # Clumping
   clump_job <- run_clumping(paths[["clean"]], paths[["clumping_dir"]])
 
-  # calculate sig sns
-  sig_snps <- glue::glue(
-  "Rscript -e ",
-  "'readr::write_tsv(dplyr::tibble(n_sig = nrow(dplyr::filter(data.table::fread(commandArgs(trailingOnly=TRUE)[2]), P < 5e-08))),commandArgs(trailingOnly=TRUE)[3])'",
-  " --args {paths[['clean']]} {paths[['sig_snps']]}"
-  )
+  # Find the nubmer of significant snps
+  sig_snps <- n_significant_snps(paths)
 
-  cleanup <- glue::glue(
-    "rm {paths[['raw']]}"
-  )
+  cleanup <- cleanup_files(paths)
+
   # code to sbatch sbayes
   sbatch_sbayes <- glue::glue("sbatch {paths[['sbayes_slurm_path']]}")
 
-  captured <- c(slurm_header, cleansumstats_job, create_dirs, ldsc_job,
-    clump_job,sbayes_job,sbatch_sbayes, sig_snps, cleanup)
+  # captured <- c(slurm_header, cleansumstats_job, create_dirs, ldsc_job,
+  #   clump_job,sbayes_job,sbatch_sbayes, sig_snps, cleanup)
 
   # run s-ldsc?
   fs::dir_create(paths[["pldsc_siletti"]], recurse=TRUE)
@@ -82,21 +74,53 @@ clean_sumstats <- function(infile, col_map, name, model = "logistic") {
 
   captured <- c(
     slurm_header,
+    "# 1) Cleansumstats pipeline, to QC and harmonize summary statistic",
     cleansumstats_job,
+    "\n",
+    "# Create directories, and calculate the number of significant SNPs",
     create_dirs,
+    sig_snps,
+    "\n",
+    "# 2) LDSC to munge and estimate heritability",
     ldsc_job,
+    "\n",
+    "# 3) Clumping to get number of loci",
     clump_job,
+    "\n",
+    "# 4) Stratified LDSC using scRNA human brain cell data",
     sldsc_siletti,
+    "\n ",
+    "# 5) Generate code to run SbayesR for polygenic scores ",
     sbayes_job,
     sbatch_sbayes,
-    sig_snps,
-    cleanup)
+    "\n",
+    "# Clean up files that are no longer needed",
+    cleanup
+    )
 
   writeLines(captured, paths[["base_job"]])
 
   paths[["base_job"]]
 }
 
+initialize_folder_structure <- function(paths) {
+  glue::glue("mkdir -p {paths[['ldsc_dir']]} {paths[['clumping_dir']]}")
+
+}
+
+n_significant_snps <- function(paths){
+  glue::glue(
+    "Rscript -e ",
+    "'readr::write_tsv(dplyr::tibble(n_sig = nrow(dplyr::filter(data.table::fread(commandArgs(trailingOnly=TRUE)[2]), P < 5e-08))),commandArgs(trailingOnly=TRUE)[3])'",
+    " --args {paths[['clean']]} {paths[['sig_snps']]}"
+  )
+}
+
+cleanup_files <- function(paths) {
+  # remove the raw sumstat
+  glue::glue("rm {paths[['raw']]}")
+
+}
 
 make_cleansumstats_job <- function(paths, model, col_map) {
   # setup and create the metadata file, and write it to the directory
@@ -105,9 +129,10 @@ make_cleansumstats_job <- function(paths, model, col_map) {
     glue::glue("path_sumStats: {fs::path_file(paths[['raw']])}"),
     glue::glue("stats_Model: {model}")
   )
-  # col_map is passed
+  # Write out the metafile
   writeLines(c(header, col_map), paths[['metafile']])
-  paths[['metafile']]
+
+
   glue::glue(
     "{Sys.getenv('cleanSumstats')}/cleansumstats.sh ",
     "-i {paths[['metafile']]} ",
@@ -155,6 +180,7 @@ filepath_manager <- function(infile, name,dir) {
   # dir with different post GWAS analysis
   analysis_dir <- fs::path(cleaned_dir, "analysis")
 
+  # basic ldsc + partitioned ldsc
   ldsc_dir <-     fs::path(analysis_dir, "ldsc")
   ldsc_sumstats <-fs::path(analysis_dir, "ldsc", "ldsc")
   ldsc_out <-fs::path(analysis_dir, "ldsc", "ldsc_h2")
@@ -223,7 +249,7 @@ filepath_manager <- function(infile, name,dir) {
 #' @export
 #'
 #' @examples \dontrun{
-#' col_map(col_CHR = "CHR")
+#' match_cols(col_CHR = "CHR")
 #' }
 #'
 match_cols <- function(
@@ -245,7 +271,7 @@ match_cols <- function(
     glue::glue("col_SE: {col_SE}"),
     glue::glue("col_Z: {col_Z}"),
     glue::glue("col_OR: {col_OR}"),
-    glue::glue("col_N: {col_N}"),
+    glue::glue("col_N: '{col_N}'"),
     glue::glue("col_P: {col_P}"),
     glue::glue("col_CaseN: {col_CaseN}"),
     glue::glue("col_ControlN: {col_ControlN}"),

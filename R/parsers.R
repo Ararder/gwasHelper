@@ -1,7 +1,5 @@
 utils::globalVariables(c(".", "category"))
-# parses the output of a standard ldsc commandline call to ldsc.py --h2
-# using regex pattern matching
-  # extract the output of LDSC h2
+
 parse_ldsc_h2 <- function(path) {
 
   dataset_name <- get_analysis_phenotype(path)
@@ -78,7 +76,7 @@ parse_ldsc_rg <- function(path){
 }
 
 parse_sbayes_parres <- function(path){
-  file <- readr::read_tsv(path)
+  file <- suppressMessages(readr::read_tsv(path))
 
   if(length(readLines(path)) != 11) {
     message("non-standard file format. Returning NA")
@@ -102,7 +100,7 @@ parse_clumping <- function(path) {
 
 parse_sig_snps <- function(path){
   dataset_name = get_analysis_phenotype(path)
-  readr::read_tsv(path) %>%
+  suppressMessages(readr::read_tsv(path)) %>%
     dplyr::mutate(dataset_name = dataset_name) %>%
     dplyr::select(2,1)
 }

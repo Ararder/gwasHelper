@@ -31,7 +31,7 @@ run_ldsc <- function(paths) {
 
   )
 
-  c(c("module unload python", "module load ldsc"), "\n", munge, "\n", intercept)
+  c(c("module unload python", "module load ldsc"),  munge, intercept)
 }
 
 ldsc_col_checker <- function(path) {

@@ -6,8 +6,7 @@ run_clumping <- function(infile, outdir) {
   # create plink job
   plink <- clump_plink(infile, outdir)
 
-  # to merge nearby loci with bedtools, we need to change format. see ranges_to_bed
-  # in this document.
+  # to merge nearby loci with bedtools, we need to change format of outputfile
   format_munge <- glue::glue("R -e 'gwasHelper::ranges_to_bed(commandArgs(trailingOnly = TRUE)[1],commandArgs(trailingOnly=TRUE)[2])'") %>%
     paste0(" --args", " ", fs::path(outdir, "clumps.clumped.ranges"), " ", fs::path(outdir, "clumps.bed"))
 
@@ -15,7 +14,7 @@ run_clumping <- function(infile, outdir) {
   bed_out <- fs::path(outdir, "n_loci.bedtools")
   bed <- glue::glue("bedtools merge -d 50000 -i {bed_i} -c 4,5 -o sum,min > {bed_out}")
 
-  c("module load bedtools", "module load plink", plink, "\n", format_munge, "\n", bed)
+  c("module load bedtools", "module load plink", plink, format_munge, bed)
 
 }
 
@@ -49,7 +48,7 @@ clump_plink <- function(
 }
 
 
-#' Conver the clumping.ranges format from plink --clump to bed compatible format
+#' Convert the clumping.ranges format from plink --clump to bed compatible format
 #'
 #' @param infile a clumping.ranges file from plink --clump
 #' @param out filename of output
