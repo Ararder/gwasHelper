@@ -20,7 +20,7 @@ clean_sumstats <- function(infile, col_map, name, model = "logistic") {
   } else {
     paths <- filepath_manager(infile, name)
 
-    sbayes_job <- glue::glue("Rscript -e 'gwasHelper::sbayes_run(gwasHelper::filepath_manager(commandArgs(trailingOnly=TRUE)[1],commandArgs(trailingOnly=TRUE)[2]))'") %>%
+    sbayes_job <- glue::glue("Rscript -e 'gwasHelper::sbayes_run(gwasHelper::filepath_manager(commandArgs(trailingOnly=TRUE)[2],commandArgs(trailingOnly=TRUE)[3]))'") %>%
       glue::glue(" --args {infile} {name}")
   }
 
@@ -54,7 +54,7 @@ clean_sumstats <- function(infile, col_map, name, model = "logistic") {
   # calculate sig sns
   sig_snps <- glue::glue(
   "Rscript -e ",
-  "'readr::write_tsv(dplyr::tibble(n_sig = nrow(dplyr::filter(data.table::fread(commandArgs(trailingOnly=TRUE)[1]), P < 5e-08))),commandArgs(trailingOnly=TRUE)[2])'",
+  "'readr::write_tsv(dplyr::tibble(n_sig = nrow(dplyr::filter(data.table::fread(commandArgs(trailingOnly=TRUE)[2]), P < 5e-08))),commandArgs(trailingOnly=TRUE)[3])'",
   " --args {paths[['clean']]} {paths[['sig_snps']]}"
   )
 
@@ -66,6 +66,31 @@ clean_sumstats <- function(infile, col_map, name, model = "logistic") {
 
   captured <- c(slurm_header, cleansumstats_job, create_dirs, ldsc_job,
     clump_job,sbayes_job,sbatch_sbayes, sig_snps, cleanup)
+
+  # run s-ldsc?
+  fs::dir_create(paths[["pldsc_siletti"]], recurse=TRUE)
+  writeLines(
+    c(
+      cleansumstats_pldsc(paths, Sys.getenv("siletti_clusters_ldscores")),
+      "\n",
+      cleansumstats_pldsc(paths, Sys.getenv("siletti_superclusters_ldscores"))
+    ),
+    paths[['pldsc_siletti_slurm']]
+  )
+  sldsc_siletti <- glue::glue("chmod 700 {paths[['pldsc_siletti_slurm']]} && {paths[['pldsc_siletti_slurm']]}")
+
+
+  captured <- c(
+    slurm_header,
+    cleansumstats_job,
+    create_dirs,
+    ldsc_job,
+    clump_job,
+    sldsc_siletti,
+    sbayes_job,
+    sbatch_sbayes,
+    sig_snps,
+    cleanup)
 
   writeLines(captured, paths[["base_job"]])
 
@@ -133,6 +158,9 @@ filepath_manager <- function(infile, name,dir) {
   ldsc_dir <-     fs::path(analysis_dir, "ldsc")
   ldsc_sumstats <-fs::path(analysis_dir, "ldsc", "ldsc")
   ldsc_out <-fs::path(analysis_dir, "ldsc", "ldsc_h2")
+  pldsc <- fs::path(ldsc_dir, "pldsc")
+  pldsc_siletti <- fs::path(pldsc, "siletti")
+  pldsc_siletti_slurm <- fs::path(pldsc, "siletti", "run_all.sh")
 
   sbayes_dir <-   fs::path(analysis_dir, "sbayesr")
   sbayes_ma <-   fs::path(analysis_dir, "sbayesr", "cleaned.ma")
@@ -156,6 +184,9 @@ filepath_manager <- function(infile, name,dir) {
     "ldsc_dir" = ldsc_dir,
     "ldsc_sumstats" = ldsc_sumstats,
     "ldsc_out" = ldsc_out,
+    "pldsc" = pldsc,
+    "pldsc_siletti" = pldsc_siletti,
+    "pldsc_siletti_slurm" = pldsc_siletti_slurm,
     "sbayes_dir" = sbayes_dir,
     "sbayes_ma" = sbayes_ma,
     "sbayes_slurm_path" = sbayes_slurm_path,

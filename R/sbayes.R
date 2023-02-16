@@ -13,7 +13,7 @@ sbayes_run <- function(paths) {
 
 
   args <- glue::glue("{paths[['clean']]} {paths[['sbayes_ma']]}")
-  inside <- glue::glue("commandArgs(trailingOnly=TRUE)[1],commandArgs(trailingOnly=TRUE)[2]")
+  inside <- glue::glue("commandArgs(trailingOnly=TRUE)[2],commandArgs(trailingOnly=TRUE)[3]")
   cleaning <- glue::glue("Rscript -e ","'gwasHelper::prepare_ma({inside})'", " --args {args}")
 
 
@@ -23,11 +23,13 @@ sbayes_run <- function(paths) {
     name = paths[['dataset_name']],
     out  = paths[['sbayes_dir']]
     )
+  print("Captured code to run SbayesR")
 
   # slurm header
   if(Sys.getenv("SLURM_JOB_ID") == ""){
     header <- slurm_header(time = 24, mem=40, output_dir = paths[["sbayes_dir"]])
   } else {
+    print(glue::glue("creating dependecy for slurm job. SbayesR will run when job {Sys.getenv('SLURM_JOB_ID')} is finished"))
     header <- slurm_header(time = 24, mem=40, output_dir = paths[["sbayes_dir"]], Sys.getenv("SLURM_JOB_ID"))
   }
 
@@ -35,8 +37,11 @@ sbayes_run <- function(paths) {
   # write slurm job
   fs::dir_create(paths[["sbayes_dir"]])
   writeLines(
-    c(header, "\n", cleaning, "\n", sbayes_code),
-    paths[["sbayes_slurm_path"]]
+    c(header, "\n", cleaning, "\n", sbayes_code,
+      glue::glue("rm {paths[['sbayes_ma']]}"),
+      "\n"),
+
+    paths[["sbayes_slurm_path"]],
     )
 }
 
@@ -87,6 +92,7 @@ sbayes_filters <- function(df, N, freq_path){
     df <- add_1000g_freq(df)
   }
 
+  print("Filtering to MAF >= 0.01 & MAF <= 0.99")
   df <- dplyr::filter(df, .data[["EAF"]] >= 0.01 & .data[["EAF"]] <= 0.99)
 
   if("INFO" %in% colnames(df)) {
@@ -95,10 +101,13 @@ sbayes_filters <- function(df, N, freq_path){
   }
 
   if(!missing(N)){
+    print(glue::glue("N was manually given. All SNPs are given the value {N}"))
     df <- dplyr::mutate(df, N = {{ N }})
   }
 
   if(all(c("ControlN", "CaseN") %in% colnames(df))) {
+    print("Both ControlN and CaseN are found in the cleaned sumstat.
+          Using this to compute N = CaseN + ControlN")
     df <- dplyr::mutate(df, N = ControlN + CaseN)
   }
 

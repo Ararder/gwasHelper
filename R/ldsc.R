@@ -60,4 +60,51 @@ ldsc_col_checker <- function(path) {
 
 
 
+cleansumstats_pldsc <- function(paths, ldscores) {
+
+  all_celltypes <- fs::dir_ls(ldscores)
+
+
+  job1 <- purrr::map2(
+    all_celltypes,
+    fs::path_file(all_celltypes),
+    \(celltype, name) ldsc_partitioned(
+      ld1 = celltype, outname = name, sumstats = paste0(paths[["ldsc_sumstats"]], ".sumstats.gz"),
+      outdir = paths[["pldsc_siletti"]], base_ldscore = Sys.getenv("pldsc_base_ldscore"),
+      weights = Sys.getenv("pldsc_weights"), freq = Sys.getenv("pldsc_freq"))
+  )
+
+  purrr::map_chr(job1, \(code) glue::glue("sbatch --time=00:30:00 --output={paths[['pldsc_siletti']]}/slurm-%j.out --mem=4gb --wrap='module unload python && module load ldsc && {code}'"))
+
+
+}
+
+ldsc_partitioned <- function(
+    ld1,
+    outname,
+    sumstats,
+    outdir,
+    base_ldscore,
+    weights,
+    freq
+)
+  {
+
+
+    glue::glue(
+      "ldsc.py ",
+      "--h2 {sumstats} ",
+      "--ref-ld-chr {base_ldscore},{ld1}/baseline. ",
+      "--w-ld-chr {weights} ",
+      "--overlap-annot ",
+      "--frqfile-chr {freq} ",
+      "--print-coefficients ",
+      "--out {outdir}/{outname}"
+    )
+
+  }
+
+
+
+
 

@@ -1,4 +1,4 @@
-utils::globalVariables(c("."))
+utils::globalVariables(c(".", "category"))
 # parses the output of a standard ldsc commandline call to ldsc.py --h2
 # using regex pattern matching
   # extract the output of LDSC h2
@@ -105,6 +105,16 @@ parse_sig_snps <- function(path){
   readr::read_tsv(path) %>%
     dplyr::mutate(dataset_name = dataset_name) %>%
     dplyr::select(2,1)
+}
+
+parse_pldsc <- function(path) {
+  name <- janitor::make_clean_names(
+    fs::path_file(path) %>% stringr::str_remove(".results")
+  )
+  suppressMessages(readr::read_tsv(path)) |>
+    janitor::clean_names() |>
+    dplyr::filter(category == "L2_1") |>
+    dplyr::mutate(category =  name)
 }
 
 #
