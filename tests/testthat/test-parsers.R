@@ -31,10 +31,15 @@ test_that("If LDSC rg output is non-standard, return NA tibble",  {
 
 })
 
+parse_ldsc_rg(test_path("data/ldsc/rg/lymph__scz2022_eur.log"))
+
+
 test_that("Correctly reads in LDSC rg results",  {
   real_df <- dplyr::tibble(
-    pheno1 = "lymph", pheno2 = "scz2022_eur", rg=0.0807, rg_se=0.0323, p = 0.0125
-    )
+    pheno1 = "lymph", pheno2 = "scz2022_eur", rg=0.0807, se=0.0323,
+    z = 2.4975, p = 0.0125, h2_obs = 0.3736, h2_obs_se = 0.016, h2_int = 1.0696,
+    h2_int_se = 0.0163, gcov_int = -0.0274, gcov_int_se = 0.0156)
+
 
   expect_equal(parse_ldsc_rg(test_path("data/ldsc/rg/lymph__scz2022_eur.log")), real_df)
 

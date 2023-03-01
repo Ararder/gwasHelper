@@ -36,6 +36,17 @@ parse_ldsc_h2 <- function(path) {
   dplyr::tibble(dataset_name, obs_h2, obs_se, lambda, mean_chi2, intercept, intercept_se, ratio)
 }
 
+#' Title
+#'
+#' @param path path to LDSC rg output file
+#'
+#' @return a tibble
+#' @export
+#'
+#' @examples \dontrun{
+#' parse_ldsc_rg("path/to/ldsc_rg.results")
+#' }
+#'
 parse_ldsc_rg <- function(path){
   strings <- readLines(path)
 
@@ -54,25 +65,27 @@ parse_ldsc_rg <- function(path){
     stringr::str_split("__") %>% .[[1]] %>%
     .[2]
 
+  names <- strings[61] %>%
+    stringr::str_split(" ") %>%
+    .[[1]] %>%
+    .[. != ""] %>%
+    .[-c(1:2)]
 
-  rg <- strings[55] %>%
-    stringr::str_remove("Genetic Correlation: ") %>%
-    stringr::str_split(" \\(") %>% .[[1]] %>%
-    stringr::str_remove("\\)") %>% .[1] %>%
+  vals <- strings[62] %>%
+    stringr::str_split(" ") %>%
+    .[[1]] %>%
+    .[. != ""] %>%
+    .[-c(1:2)] %>%
     as.numeric()
 
-  rg_se <- strings[55] %>%
-    stringr::str_remove("Genetic Correlation: ") %>%
-    stringr::str_split(" \\(") %>% .[[1]] %>%
-    stringr::str_remove("\\)") %>% .[2] %>%
-    as.numeric()
+  dplyr::tibble(names, vals) %>%
+    tidyr::pivot_wider(names_from = names, values_from = vals)  %>%
+    dplyr::mutate(
+      pheno1 = pheno1,
+      pheno2 = pheno2
+    ) %>%
+    dplyr::select(pheno1, pheno2, dplyr::everything())
 
-  p <- strings[57] %>%
-    stringr::str_remove("P: ") %>%
-    as.numeric()
-
-
-  dplyr::tibble(pheno1, pheno2,rg, rg_se, p)
 }
 
 parse_sbayes_parres <- function(path){

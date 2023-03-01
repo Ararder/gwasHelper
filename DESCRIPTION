@@ -19,6 +19,7 @@ Imports:
     purrr,
     readr,
     stringr,
+    tidyr,
     yaml
 RoxygenNote: 7.2.3
 Suggests: 
