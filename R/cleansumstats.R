@@ -1,6 +1,101 @@
 #' Title
 #'
 #' @param infile raw gwas sumstat to clean
+#' @param name gwas sumstat name
+#' @param meta filepath to metafile
+#'
+#' @return a filepath to the slurm job
+#' @export
+#'
+#' @examples \dontrun{
+#' migrate("my_raw_gwas.tsv.gz",name =  "mdd2024",col_map = col_map)
+#' }
+migrate <- function(infile, meta, name) {
+  if(missing(name)) {
+    paths <- filepath_manager(infile)
+
+    sbayes_job <- glue::glue("Rscript -e 'gwasHelper::sbayes_run(gwasHelper::filepath_manager(commandArgs(trailingOnly=TRUE)))'") %>%
+      glue::glue(" --args {infile}")
+  } else {
+    paths <- filepath_manager(infile, name)
+
+    sbayes_job <- glue::glue("Rscript -e 'gwasHelper::sbayes_run(gwasHelper::filepath_manager(commandArgs(trailingOnly=TRUE)[2],commandArgs(trailingOnly=TRUE)[3]))'") %>%
+      glue::glue(" --args {infile} {name}")
+  }
+
+
+
+
+  cleansumstats_job <- glue::glue(
+    "{Sys.getenv('cleanSumstats')}/cleansumstats.sh ",
+    "-i {paths[['metafile']]} ",
+    "-d {Sys.getenv('cleanSumstats')}/out_dbsnp ",
+    "-k {Sys.getenv('cleanSumstats')}/out_1kgp ",
+    "-o {paths[['cleaned_dir']]}",
+  )
+
+
+
+
+  # create the new folder, and copy over the file
+  fs::file_copy(infile, fs::path(fs::dir_create(paths[["base"]]), fs::path_file(infile)))
+
+  # copy over metafile
+  fs::file_copy(meta, paths[["metafile"]])
+
+
+  # create the slurm header for the job
+  slurm_header <- slurm_header(time=3, mem = 4, output_dir = paths[["base"]])
+
+
+  # initialize output folders for secondary analysis
+  create_dirs <- initialize_folder_structure(paths)
+
+  # LDSC
+  ldsc_job <- run_ldsc(paths)
+
+  # Clumping
+  clump_job <- run_clumping(paths[["clean"]], paths[["clumping_dir"]])
+
+  # Find the nubmer of significant snps
+  sig_snps <- n_significant_snps(paths)
+
+  cleanup <- cleanup_files(paths)
+
+
+
+  captured <- c(
+    slurm_header,
+    "# 1) Cleansumstats pipeline, to QC and harmonize summary statistic",
+    cleansumstats_job,
+    "\n",
+    "# Create directories, and calculate the number of significant SNPs",
+    create_dirs,
+    sig_snps,
+    "\n",
+    "# 2) LDSC to munge and estimate heritability",
+    ldsc_job,
+    "\n",
+    "# 3) Clumping to get number of loci",
+    clump_job,
+    "\n",
+    "# 4) Stratified LDSC using scRNA human brain cell data",
+    "\n ",
+    "# 5) Generate code to run SbayesR for polygenic scores ",
+    # sbayes_job,
+    # sbatch_sbayes,
+    "\n",
+    "# Clean up files that are no longer needed",
+    cleanup
+  )
+
+  writeLines(captured, paths[["base_job"]])
+
+  paths[["base_job"]]
+}
+#' Title
+#'
+#' @param infile raw gwas sumstat to clean
 #' @param col_map map of column names
 #' @param name gwas sumstat name
 #' @param model logistic/linear
@@ -91,8 +186,8 @@ clean_sumstats <- function(infile, col_map, name, model = "logistic") {
     sldsc_siletti,
     "\n ",
     "# 5) Generate code to run SbayesR for polygenic scores ",
-    sbayes_job,
-    sbatch_sbayes,
+    # sbayes_job,
+    # sbatch_sbayes,
     "\n",
     "# Clean up files that are no longer needed",
     cleanup
@@ -176,6 +271,7 @@ filepath_manager <- function(infile, name,dir) {
   clean =         fs::path(cleaned_dir, "cleaned_GRCh38.gz")
   cleaned_meta <- fs::path(cleaned_dir, "cleaned_metadata.yaml")
   sig_snps <-     fs::path(cleaned_dir, "sig_snps.tsv")
+  build37 <-      fs::path(cleaned_dir, "cleaned_GRCh37.gz")
 
   # dir with different post GWAS analysis
   analysis_dir <- fs::path(cleaned_dir, "analysis")
@@ -187,6 +283,9 @@ filepath_manager <- function(infile, name,dir) {
   pldsc <- fs::path(ldsc_dir, "pldsc")
   pldsc_siletti <- fs::path(pldsc, "siletti")
   pldsc_siletti_slurm <- fs::path(pldsc, "siletti", "run_all.sh")
+
+  # magma
+  magma_dir <- fs::path(analysis_dir, "magma")
 
   sbayes_dir <-   fs::path(analysis_dir, "sbayesr")
   sbayes_ma <-   fs::path(analysis_dir, "sbayesr", "cleaned.ma")
@@ -205,6 +304,7 @@ filepath_manager <- function(infile, name,dir) {
     "clean" = clean,
     "cleaned_meta" = cleaned_meta,
     "sig_snps" = sig_snps,
+    "build37" = build37,
 
     "analysis_dir" = analysis_dir,
     "ldsc_dir" = ldsc_dir,
@@ -213,6 +313,9 @@ filepath_manager <- function(infile, name,dir) {
     "pldsc" = pldsc,
     "pldsc_siletti" = pldsc_siletti,
     "pldsc_siletti_slurm" = pldsc_siletti_slurm,
+
+    "magma_dir"  = magma_dir,
+
     "sbayes_dir" = sbayes_dir,
     "sbayes_ma" = sbayes_ma,
     "sbayes_slurm_path" = sbayes_slurm_path,

@@ -60,5 +60,12 @@ test_that("SbayesR fails on non-standard file", {
 })
 
 
+df <- dplyr::tibble(data.table::fread("/nas/depts/007/sullilab/shared/gwas_sumstats/run2/mdd2019/mdd2019/analysis/magma/superclusters.gene_set.gsa.out", skip=3))
+test_that("magma geneset parses correctly", {
+
+  expect_true(length(colnames(parse_magma_geneset(test_path("data", "magma_geneset.tsv")))) == 7)
+
+})
+
 
 

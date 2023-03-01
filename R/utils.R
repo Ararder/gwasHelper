@@ -28,3 +28,10 @@ get_analysis_phenotype <- function(path){
     stringr::str_remove("/analysis") %>%
     fs::path_file()
 }
+
+validate_columns <- function(type, df) {
+  if(type == "magma") {
+      stopifnot("Magma requires RSID, POS, CHR, N and P columns" =all(c("RSID", "POS", "CHR", "P", "N") %in% colnames(df)))
+    }
+
+}

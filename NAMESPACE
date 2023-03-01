@@ -2,8 +2,11 @@
 
 export("%>%")
 export(clean_sumstats)
+export(cleansumstats_magma)
 export(filepath_manager)
+export(magma_munge_and_setup)
 export(match_cols)
+export(migrate)
 export(prepare_ma)
 export(ranges_to_bed)
 export(sbayes_run)

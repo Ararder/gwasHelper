@@ -115,6 +115,11 @@ parse_pldsc <- function(path) {
     dplyr::mutate(category =  name)
 }
 
+parse_magma_geneset <- function(path){
+  dplyr::tibble(data.table::fread(path, skip = 3)) |>
+    dplyr::mutate(VARIABLE = janitor::make_clean_names(FULL_NAME)) |>
+    dplyr::select(-FULL_NAME)
+}
 #
 #
 # unique_order <- function(string1, string2) {
