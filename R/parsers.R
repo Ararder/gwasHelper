@@ -133,11 +133,3 @@ parse_magma_geneset <- function(path){
     dplyr::mutate(VARIABLE = janitor::make_clean_names(FULL_NAME)) |>
     dplyr::select(-FULL_NAME)
 }
-#
-#
-# unique_order <- function(string1, string2) {
-#   string <- sort(c(string1, string2))
-#   stringr::str_c(string[1], string[2], sep = "__")
-#
-# }
-# unique_order <- Vectorize(unique_order)
