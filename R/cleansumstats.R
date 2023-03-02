@@ -1,104 +1,14 @@
 #' Title
 #'
 #' @param infile raw gwas sumstat to clean
-#' @param name gwas sumstat name
-#' @param meta filepath to metafile
-#'
-#' @return a filepath to the slurm job
-#' @export
-#'
-#' @examples \dontrun{
-#' migrate("my_raw_gwas.tsv.gz",name =  "mdd2024",col_map = col_map)
-#' }
-migrate <- function(infile, meta, name) {
-  if(missing(name)) {
-    paths <- filepath_manager(infile)
-
-    sbayes_job <- glue::glue("Rscript -e 'gwasHelper::sbayes_run(gwasHelper::filepath_manager(commandArgs(trailingOnly=TRUE)))'") %>%
-      glue::glue(" --args {infile}")
-  } else {
-    paths <- filepath_manager(infile, name)
-
-    sbayes_job <- glue::glue("Rscript -e 'gwasHelper::sbayes_run(gwasHelper::filepath_manager(commandArgs(trailingOnly=TRUE)[2],commandArgs(trailingOnly=TRUE)[3]))'") %>%
-      glue::glue(" --args {infile} {name}")
-  }
-
-
-
-
-  cleansumstats_job <- glue::glue(
-    "{Sys.getenv('cleanSumstats')}/cleansumstats.sh ",
-    "-i {paths[['metafile']]} ",
-    "-d {Sys.getenv('cleanSumstats')}/out_dbsnp ",
-    "-k {Sys.getenv('cleanSumstats')}/out_1kgp ",
-    "-o {paths[['cleaned_dir']]}",
-  )
-
-
-
-
-  # create the new folder, and copy over the file
-  fs::file_copy(infile, fs::path(fs::dir_create(paths[["base"]]), fs::path_file(infile)))
-
-  # copy over metafile
-  fs::file_copy(meta, paths[["metafile"]])
-
-
-  # create the slurm header for the job
-  slurm_header <- slurm_header(time=3, mem = 4, output_dir = paths[["base"]])
-
-
-  # initialize output folders for secondary analysis
-  create_dirs <- initialize_folder_structure(paths)
-
-  # LDSC
-  ldsc_job <- run_ldsc(paths)
-
-  # Clumping
-  clump_job <- run_clumping(paths[["clean"]], paths[["clumping_dir"]])
-
-  # Find the nubmer of significant snps
-  sig_snps <- n_significant_snps(paths)
-
-  cleanup <- cleanup_files(paths)
-
-
-
-  captured <- c(
-    slurm_header,
-    "# 1) Cleansumstats pipeline, to QC and harmonize summary statistic",
-    cleansumstats_job,
-    "\n",
-    "# Create directories, and calculate the number of significant SNPs",
-    create_dirs,
-    sig_snps,
-    "\n",
-    "# 2) LDSC to munge and estimate heritability",
-    ldsc_job,
-    "\n",
-    "# 3) Clumping to get number of loci",
-    clump_job,
-    "\n",
-    "# 4) Stratified LDSC using scRNA human brain cell data",
-    "\n ",
-    "# 5) Generate code to run SbayesR for polygenic scores ",
-    # sbayes_job,
-    # sbatch_sbayes,
-    "\n",
-    "# Clean up files that are no longer needed",
-    cleanup
-  )
-
-  writeLines(captured, paths[["base_job"]])
-
-  paths[["base_job"]]
-}
-#' Title
-#'
-#' @param infile raw gwas sumstat to clean
 #' @param col_map map of column names
 #' @param name gwas sumstat name
 #' @param model logistic/linear
+#' @param magma_gene run magma gene analysis?
+#' @param magma_gene_set run magma gene analysis?
+#' @param pldsc run partitioned ldscore regression?
+#' @param sbayesr run sbayesR to generate a PGS?
+#'
 #'
 #' @return a filepath to the slurm job
 #' @export
@@ -106,7 +16,14 @@ migrate <- function(infile, meta, name) {
 #' @examples \dontrun{
 #' clean_sumstats("my_raw_gwas.tsv.gz",name =  "mdd2024",col_map = col_map)
 #' }
-clean_sumstats <- function(infile, col_map, name, model = "logistic") {
+clean_sumstats <- function(infile,
+                           col_map,
+                           name,
+                           model = "logistic",
+                           magma_gene = FALSE,
+                           magma_gene_set = FALSE,
+                           pldsc = FALSE,
+                           sbayesr = FALSE) {
   if(missing(name)) {
     paths <- filepath_manager(infile)
 
@@ -120,6 +37,8 @@ clean_sumstats <- function(infile, col_map, name, model = "logistic") {
   }
 
 
+  ## Basic analysis of in the clean_sumstats pipeline
+  # ----------------------------------------------------------------------------
 
   # create the new folder, and copy over the file
   fs::file_copy(infile, fs::path(fs::dir_create(paths[["base"]]), fs::path_file(infile)))
@@ -133,45 +52,29 @@ clean_sumstats <- function(infile, col_map, name, model = "logistic") {
     model = model,
     col_map = col_map
   )
+  # Limit pvalues to minimum precision
+  adjust <- glue::glue(
+    "Rscript -e gwasHelper::correct_small_pval(commandArgs(trailingOnly=TRUE)[2])",
+    " --args {paths[['clean']]}"
+    )
 
   # initialize output folders for secondary analysis
   create_dirs <- initialize_folder_structure(paths)
 
-  # LDSC
+  # LDSC, Clumping, number of significant SNPs and cleanup
   ldsc_job <- run_ldsc(paths)
-
-  # Clumping
   clump_job <- run_clumping(paths[["clean"]], paths[["clumping_dir"]])
-
-  # Find the nubmer of significant snps
   sig_snps <- n_significant_snps(paths)
-
   cleanup <- cleanup_files(paths)
 
-  # code to sbatch sbayes
-  sbatch_sbayes <- glue::glue("sbatch {paths[['sbayes_slurm_path']]}")
-
-  # captured <- c(slurm_header, cleansumstats_job, create_dirs, ldsc_job,
-  #   clump_job,sbayes_job,sbatch_sbayes, sig_snps, cleanup)
-
-  # run s-ldsc?
-  fs::dir_create(paths[["pldsc_siletti"]], recurse=TRUE)
-  writeLines(
-    c(
-      cleansumstats_pldsc(paths, Sys.getenv("siletti_clusters_ldscores")),
-      "\n",
-      cleansumstats_pldsc(paths, Sys.getenv("siletti_superclusters_ldscores"))
-    ),
-    paths[['pldsc_siletti_slurm']]
-  )
-  sldsc_siletti <- glue::glue("chmod 700 {paths[['pldsc_siletti_slurm']]} && {paths[['pldsc_siletti_slurm']]}")
-
-
+  # Collect the code
   captured <- c(
     slurm_header,
     "# 1) Cleansumstats pipeline, to QC and harmonize summary statistic",
     cleansumstats_job,
     "\n",
+    "# 2) If Pvalues are extremely small, set them to e-308",
+    adjust,
     "# Create directories, and calculate the number of significant SNPs",
     create_dirs,
     sig_snps,
@@ -181,14 +84,56 @@ clean_sumstats <- function(infile, col_map, name, model = "logistic") {
     "\n",
     "# 3) Clumping to get number of loci",
     clump_job,
-    "\n",
-    "# 4) Stratified LDSC using scRNA human brain cell data",
-    sldsc_siletti,
-    "\n ",
-    "# 5) Generate code to run SbayesR for polygenic scores ",
-    # sbayes_job,
-    # sbatch_sbayes,
-    "\n",
+    "\n"
+  )
+
+
+  # P-LDSC
+  if(pldsc) {
+
+    ldscores <- c(
+      Sys.getenv("siletti_superclusters_ldscores"),
+      Sys.getenv("siletti_clusters_ldscores")
+      )
+
+    pldsc <- cleansumstats_pldsc(paths,ldscores)
+    captured <-  c(
+      captured,
+      "# 4) Stratified LDSC using scRNA human brain cell data",
+      pldsc,
+      "\n "
+    )
+  }
+  ## MAGMA
+  # ----------------------------------------------------------------------------
+  if(magma_gene) {
+    magma <- ""
+    captured <- c(
+      captured,
+      "# 5) Generate code to run Magma gene-set ",
+      magma,
+      "\n"
+    )
+  }
+
+  ## SbayesR
+  # ----------------------------------------------------------------------------
+
+  if(sbayesr) {
+    sbatch_sbayes <- glue::glue("sbatch {paths[['sbayes_slurm_path']]}")
+    captured <- c(
+      captured,
+        "# 6) Generate code to run SbayesR for polygenic scores ",
+        sbayes_job,
+        sbatch_sbayes,
+        "\n"
+    )
+  }
+
+  ## cleanup code
+  # ----------------------------------------------------------------------------
+  captured <- c(
+    captured,
     "# Clean up files that are no longer needed",
     cleanup
     )
@@ -197,6 +142,7 @@ clean_sumstats <- function(infile, col_map, name, model = "logistic") {
 
   paths[["base_job"]]
 }
+
 
 initialize_folder_structure <- function(paths) {
   glue::glue("mkdir -p {paths[['ldsc_dir']]} {paths[['clumping_dir']]}")
@@ -282,7 +228,7 @@ filepath_manager <- function(infile, name,dir) {
   ldsc_out <-fs::path(analysis_dir, "ldsc", "ldsc_h2")
   pldsc <- fs::path(ldsc_dir, "pldsc")
   pldsc_siletti <- fs::path(pldsc, "siletti")
-  pldsc_siletti_slurm <- fs::path(pldsc, "siletti", "run_all.sh")
+  pldsc_slurm <- fs::path(pldsc, "run_all.sh")
 
   # magma
   magma_dir <- fs::path(analysis_dir, "magma")
@@ -312,7 +258,7 @@ filepath_manager <- function(infile, name,dir) {
     "ldsc_out" = ldsc_out,
     "pldsc" = pldsc,
     "pldsc_siletti" = pldsc_siletti,
-    "pldsc_siletti_slurm" = pldsc_siletti_slurm,
+    "pldsc_slurm" = pldsc_slurm,
 
     "magma_dir"  = magma_dir,
 
@@ -387,4 +333,120 @@ match_cols <- function(
     glue::glue("stats_StudyN: {stats_StudyN}")
   ) %>%
     purrr::reduce(c)
+}
+#' Title
+#'
+#' @param infile raw gwas sumstat to clean
+#' @param name gwas sumstat name
+#' @param meta filepath to metafile
+#'
+#' @return a filepath to the slurm job
+#' @export
+#'
+#' @examples \dontrun{
+#' migrate("my_raw_gwas.tsv.gz",name =  "mdd2024",col_map = col_map)
+#' }
+migrate <- function(infile, meta, name) {
+  if(missing(name)) {
+    paths <- filepath_manager(infile)
+
+    sbayes_job <- glue::glue("Rscript -e 'gwasHelper::sbayes_run(gwasHelper::filepath_manager(commandArgs(trailingOnly=TRUE)))'") %>%
+      glue::glue(" --args {infile}")
+  } else {
+    # the name variable needs to be passed to SbayesR helper
+    paths <- filepath_manager(infile, name)
+    sbayes_job <- glue::glue("Rscript -e 'gwasHelper::sbayes_run(gwasHelper::filepath_manager(commandArgs(trailingOnly=TRUE)[2],commandArgs(trailingOnly=TRUE)[3]))'") %>%
+      glue::glue(" --args {infile} {name}")
+  }
+
+
+
+
+  cleansumstats_job <- glue::glue(
+    "{Sys.getenv('cleanSumstats')}/cleansumstats.sh ",
+    "-i {paths[['metafile']]} ",
+    "-d {Sys.getenv('cleanSumstats')}/out_dbsnp ",
+    "-k {Sys.getenv('cleanSumstats')}/out_1kgp ",
+    "-o {paths[['cleaned_dir']]}",
+  )
+
+
+
+
+  # create the new folder, and copy over the file
+  fs::file_copy(infile, fs::path(fs::dir_create(paths[["base"]]), fs::path_file(infile)))
+
+  # copy over metafile
+  fs::file_copy(meta, paths[["metafile"]])
+
+
+  # create the slurm header for the job
+  slurm_header <- slurm_header(time=3, mem = 4, output_dir = paths[["base"]])
+
+
+  # initialize output folders for secondary analysis
+  create_dirs <- initialize_folder_structure(paths)
+
+  # LDSC
+  ldsc_job <- run_ldsc(paths)
+
+  # Clumping
+  clump_job <- run_clumping(paths[["clean"]], paths[["clumping_dir"]])
+
+  # Find the nubmer of significant snps
+  sig_snps <- n_significant_snps(paths)
+
+  cleanup <- cleanup_files(paths)
+
+
+
+  captured <- c(
+    slurm_header,
+    "# 1) Cleansumstats pipeline, to QC and harmonize summary statistic",
+    cleansumstats_job,
+    "\n",
+    "# Create directories, and calculate the number of significant SNPs",
+    create_dirs,
+    sig_snps,
+    "\n",
+    "# 2) LDSC to munge and estimate heritability",
+    ldsc_job,
+    "\n",
+    "# 3) Clumping to get number of loci",
+    clump_job,
+    "\n",
+    "# 4) Stratified LDSC using scRNA human brain cell data",
+    "\n ",
+    "# 5) Generate code to run SbayesR for polygenic scores ",
+    # sbayes_job,
+    # sbatch_sbayes,
+    "\n",
+    "# Clean up files that are no longer needed",
+    cleanup
+  )
+
+  writeLines(captured, paths[["base_job"]])
+
+  paths[["base_job"]]
+}
+
+#' Represent very small pvalues as minimum double number
+#'
+#' @param path filepath for gwas file
+#'
+#' @return writes out the gwas file
+#' @export
+#'
+#' @examples \dontrun{
+#' correct_small_pval("/my_gwas/gwas.tsv.gz")
+#' }
+correct_small_pval <- function(path) {
+  data.table::fread(path) |>
+    dplyr::mutate(
+      P = as.numeric(P),
+      P = dplyr::if_else(P == 0, 2.225074e-308, P)
+      ) |>
+    data.table::fwrite(path, sep = "\t")
+
+
 }

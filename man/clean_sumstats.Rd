@@ -4,7 +4,16 @@
 \alias{clean_sumstats}
 \title{Title}
 \usage{
-clean_sumstats(infile, col_map, name, model = "logistic")
+clean_sumstats(
+  infile,
+  col_map,
+  name,
+  model = "logistic",
+  magma_gene = FALSE,
+  magma_gene_set = FALSE,
+  pldsc = FALSE,
+  sbayesr = FALSE
+)
 }
 \arguments{
 \item{infile}{raw gwas sumstat to clean}
@@ -14,6 +23,14 @@ clean_sumstats(infile, col_map, name, model = "logistic")
 \item{name}{gwas sumstat name}
 
 \item{model}{logistic/linear}
+
+\item{magma_gene}{run magma gene analysis?}
+
+\item{magma_gene_set}{run magma gene analysis?}
+
+\item{pldsc}{run partitioned ldscore regression?}
+
+\item{sbayesr}{run sbayesR to generate a PGS?}
 }
 \value{
 a filepath to the slurm job

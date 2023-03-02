@@ -59,8 +59,57 @@ ldsc_col_checker <- function(path) {
 }
 
 
-
 cleansumstats_pldsc <- function(paths, ldscores) {
+
+
+  sumstats <- paste0(paths[["ldsc_sumstats"]], ".sumstats.gz")
+
+  # Check that ldscores are a vector of characters
+  if(!missing(ldscores)) stopifnot(is.character(ldscores))
+
+  # create output directories
+  outdirs <- purrr::map_chr(ldscores, \(ld) create_pldsc_names(paths = paths, ldscores = ld))
+
+  # Create all the pldsc jobs
+  jobs <- purrr::map2(ldscores, outdirs,  \(ldscores, outdir) run_pldsc(
+    sumstats = sumstats,
+    outdir = outdir,
+    ldscores = ldscores
+  )) |>
+    purrr::reduce(c)
+
+
+  # create the output directories, write out all the jobs,
+  fs::dir_create(outdirs, recurse = TRUE)
+  writeLines(jobs, paths[['pldsc_slurm']])
+  glue::glue("chmod 700 {paths[['pldsc_slurm']]} && {paths[['pldsc_slurm']]}")
+
+}
+
+
+create_pldsc_names <- function(paths, ldscores) {
+  # Names for the output directories are based on
+  # the folder names for the scRNA data
+  cell_type_level <- fs::path_file(ldscores)
+  cell_type_dataset <- fs::path_file(fs::path_dir(fs::path_dir(ldscores)))
+
+  fs::path(paths[["pldsc"]], cell_type_dataset,cell_type_level)
+}
+
+#' Generates commandline code to run partitioned ldscore regression
+#'
+#' @param sumstats ldsc munged sumstats to use
+#' @param ldscores a filepath to a directory with LD scores. Each folder in this directory
+#' corresponds to the ldscores of the specific genes for that cell-type
+#' @param outdir output directory for results
+#'
+#' @return a character vector
+#'
+#'
+#' @examples \dontrun{
+#' run_pldsc("data/gwas/cognition.fastGWA.tsv", "results/partition_ldsc", "mouse_brain/LDSCORES")
+#' }
+run_pldsc <- function(sumstats, outdir, ldscores) {
 
   all_celltypes <- fs::dir_ls(ldscores)
 
@@ -69,12 +118,17 @@ cleansumstats_pldsc <- function(paths, ldscores) {
     all_celltypes,
     fs::path_file(all_celltypes),
     \(celltype, name) ldsc_partitioned(
-      ld1 = celltype, outname = name, sumstats = paste0(paths[["ldsc_sumstats"]], ".sumstats.gz"),
-      outdir = paths[["pldsc_siletti"]], base_ldscore = Sys.getenv("pldsc_base_ldscore"),
-      weights = Sys.getenv("pldsc_weights"), freq = Sys.getenv("pldsc_freq"))
+      ld1 = celltype,
+      outname = name,
+      sumstats = sumstats,
+      outdir = outdir,
+      base_ldscore = Sys.getenv("pldsc_base_ldscore"),
+      weights = Sys.getenv("pldsc_weights"),
+      freq = Sys.getenv("pldsc_freq")
+      )
   )
 
-  purrr::map_chr(job1, \(code) glue::glue("sbatch --time=00:30:00 --output={paths[['pldsc_siletti']]}/slurm-%j.out --mem=4gb --wrap='module unload python && module load ldsc && {code}'"))
+  purrr::map_chr(job1, \(code) glue::glue("sbatch --time=00:30:00 --output={outdir}/slurm-%j.out --mem=4gb --wrap='module unload python && module load ldsc && {code}'"))
 
 
 }

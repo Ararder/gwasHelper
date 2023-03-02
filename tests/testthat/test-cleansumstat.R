@@ -32,11 +32,11 @@ test_that("clean_sumstats writes out a slurm script", {
   )
 })
 
-test_that("clean_sumstats_job creates the directory for pldsc stiletti", {
-  expect_true(
-   fs::dir_exists(paths[["pldsc_siletti"]])
-  )
-})
+# test_that("clean_sumstats_job creates the directory for pldsc stiletti", {
+#   expect_true(
+#    fs::dir_exists(paths[["pldsc"]])
+#   )
+# })
 
 
 

@@ -3,6 +3,7 @@
 export("%>%")
 export(clean_sumstats)
 export(cleansumstats_magma)
+export(correct_small_pval)
 export(filepath_manager)
 export(magma_munge_and_setup)
 export(match_cols)

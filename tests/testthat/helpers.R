@@ -25,6 +25,7 @@ setup_test_dir <- function() {
   clean_sumstats(
     infile = test_path("data/gwas_repo/bipolar_disorder.txt.gz"),
     col_map = col_map,
+    pldsc = TRUE,
     name = "bipolar2021"
   )
 
