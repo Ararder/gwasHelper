@@ -1,0 +1,30 @@
+sumstat_sheet="https://docs.google.com/spreadsheets/d/1_6oSm66hR-s1CoAbOf4P3jVCYA7bh0nT59wMQk5RRt8/edit#gid=1315711496"
+# gwasHelper_repo="/nas/depts/007/sullilab/shared/gwas_sumstats/run2"
+gwasHelper_repo="/nas/depts/007/sullilab/shared/gwas_sumstats/sumstats"
+cleanSumstats="/nas/depts/007/sullilab/shared/cleansumstats/cleansumstats"
+
+# base LDSC (munge.py and ldsc.py)
+ldsc_eur_wld="/nas/depts/007/sullilab/shared/bin/ldsc/eur_w_ld_chr/"
+ldsc_hm3="/nas/depts/007/sullilab/shared/bin/ldsc/w_hm3.snplist"
+
+# Clumping
+ref_gene_list="/nas/depts/007/sullilab/shared/gwas_sumstats/reference/glist-hg38.tsv"
+freq1000g="/nas/depts/007/sullilab/shared/gwas_sumstats/reference/1000kg_freq.tsv"
+genome1000="/nas/depts/007/sullilab/shared/gwas_sumstats/reference/1000G_EUR_Phase3_plink/1000G_merged"
+
+# GCTB
+GCTB="/nas/depts/007/sullilab/shared/gctb/gctb"
+GCTB_LDMATRIX="/nas/depts/007/sullilab/shared/gctb/band_ukb_10k_hm3/ukb10k.mldm"
+
+# files for Partitioned LDscore regression
+pldsc_base_ldscore="/nas/depts/007/sullilab/shared/partitioned_LDSC/1000G_EUR_Phase3_baseline/baseline."
+pldsc_weights="/nas/depts/007/sullilab/shared/partitioned_LDSC/1000G_Phase3_weights_hm3_no_MHC/weights.hm3_noMHC."
+pldsc_freq="/nas/depts/007/sullilab/shared/partitioned_LDSC/1000G_Phase3_frq/1000G.EUR.QC."
+siletti_clusters_ldscores="/nas/depts/007/sullilab/shared/scRNA_data/siletti2022/pldsc/clusters"
+siletti_superclusters_ldscores="/nas/depts/007/sullilab/shared/scRNA_data/siletti2022/pldsc/superclusters"
+
+# Magma
+gene_loc="/nas/depts/007/sullilab/shared/sy/ABC/data/MAGMA/Ref_data/geneMx_PrCoding_autosome_noEMHC.tsv"
+magma_bfile="/nas/depts/007/sullilab/shared/sy/MAGMA/Ref_data/g1000_eur"
+siletti_magma_clusters="/nas/depts/007/sullilab/shared/scRNA_data/siletti2022/magma/clusters_top10pct_genesets.txt"
+siletti_magma_superclusters="/nas/depts/007/sullilab/shared/scRNA_data/siletti2022/magma/superclusters_top10pct_genesets.txt"

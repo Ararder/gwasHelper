@@ -59,6 +59,7 @@ ldsc_col_checker <- function(path) {
 }
 
 
+
 cleansumstats_pldsc <- function(paths, ldscores) {
 
 
@@ -105,7 +106,7 @@ create_pldsc_names <- function(paths, ldscores) {
 #'
 #' @return a character vector
 #'
-#'
+#' @export
 #' @examples \dontrun{
 #' run_pldsc("data/gwas/cognition.fastGWA.tsv", "results/partition_ldsc", "mouse_brain/LDSCORES")
 #' }

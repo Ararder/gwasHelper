@@ -4,10 +4,10 @@
 \alias{correct_small_pval}
 \title{Represent very small pvalues as minimum double number}
 \usage{
-correct_small_pval(path)
+correct_small_pval(paths)
 }
 \arguments{
-\item{path}{filepath for gwas file}
+\item{paths}{filepath for gwas file}
 }
 \value{
 writes out the gwas file

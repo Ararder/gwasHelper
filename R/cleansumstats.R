@@ -44,7 +44,7 @@ clean_sumstats <- function(infile,
   fs::file_copy(infile, fs::path(fs::dir_create(paths[["base"]]), fs::path_file(infile)))
 
   # create the slurm header for the job
-  slurm_header <- slurm_header(time=3, mem = 4, output_dir = paths[["base"]])
+  slurm_header <- slurm_header(time=24, mem = 4, output_dir = paths[["base"]])
 
   # create the cleansumstats job --> will also writeout metadata file
   cleansumstats_job <- make_cleansumstats_job(
@@ -53,10 +53,7 @@ clean_sumstats <- function(infile,
     col_map = col_map
   )
   # Limit pvalues to minimum precision
-  adjust <- glue::glue(
-    "Rscript -e gwasHelper::correct_small_pval(commandArgs(trailingOnly=TRUE)[2])",
-    " --args {paths[['clean']]}"
-    )
+  adjust <-correct_small_pval(paths)
 
   # initialize output folders for secondary analysis
   create_dirs <- initialize_folder_structure(paths)
@@ -149,12 +146,11 @@ initialize_folder_structure <- function(paths) {
 
 }
 
+
+
+
 n_significant_snps <- function(paths){
-  glue::glue(
-    "Rscript -e ",
-    "'readr::write_tsv(dplyr::tibble(n_sig = nrow(dplyr::filter(data.table::fread(commandArgs(trailingOnly=TRUE)[2]), P < 5e-08))),commandArgs(trailingOnly=TRUE)[3])'",
-    " --args {paths[['clean']]} {paths[['sig_snps']]}"
-  )
+  glue::glue("gunzip -c {paths[['clean']]} | awk -F '\\t' 'NR==1 {{for (i=1; i<=NF; i++) {{if ($i==\"P\") {{col=i; break}}}}}} NR>1 && $col <= 5e-08' | wc -l > {paths[['sig_snps']]}")
 }
 
 cleanup_files <- function(paths) {
@@ -215,6 +211,7 @@ filepath_manager <- function(infile, name,dir) {
   # dir storing cleaned GWAS + post analysis
   cleaned_dir <-  fs::path(base, dataset_name)
   clean =         fs::path(cleaned_dir, "cleaned_GRCh38.gz")
+  temp =         fs::path(cleaned_dir, "temp.gz")
   cleaned_meta <- fs::path(cleaned_dir, "cleaned_metadata.yaml")
   sig_snps <-     fs::path(cleaned_dir, "sig_snps.tsv")
   build37 <-      fs::path(cleaned_dir, "cleaned_GRCh37.gz")
@@ -248,6 +245,7 @@ filepath_manager <- function(infile, name,dir) {
 
     "cleaned_dir" = cleaned_dir,
     "clean" = clean,
+    "temp" = temp,
     "cleaned_meta" = cleaned_meta,
     "sig_snps" = sig_snps,
     "build37" = build37,
@@ -367,7 +365,8 @@ migrate <- function(infile, meta, name) {
     "-i {paths[['metafile']]} ",
     "-d {Sys.getenv('cleanSumstats')}/out_dbsnp ",
     "-k {Sys.getenv('cleanSumstats')}/out_1kgp ",
-    "-o {paths[['cleaned_dir']]}",
+    "-o {paths[['cleaned_dir']]} ",
+    "-b /work/users/a/r/arvhar/tmp"
   )
 
 
@@ -381,7 +380,7 @@ migrate <- function(infile, meta, name) {
 
 
   # create the slurm header for the job
-  slurm_header <- slurm_header(time=3, mem = 4, output_dir = paths[["base"]])
+  slurm_header <- slurm_header(time=24, mem = 4, output_dir = paths[["base"]])
 
 
   # initialize output folders for secondary analysis
@@ -395,8 +394,13 @@ migrate <- function(infile, meta, name) {
 
   # Find the nubmer of significant snps
   sig_snps <- n_significant_snps(paths)
+  fix_pvals <-correct_small_pval(paths)
 
   cleanup <- cleanup_files(paths)
+
+  ldscores <- Sys.getenv("siletti_superclusters_ldscores")
+
+  pldsc <- cleansumstats_pldsc(paths,ldscores)
 
 
 
@@ -408,6 +412,7 @@ migrate <- function(infile, meta, name) {
     "# Create directories, and calculate the number of significant SNPs",
     create_dirs,
     sig_snps,
+    fix_pvals,
     "\n",
     "# 2) LDSC to munge and estimate heritability",
     ldsc_job,
@@ -415,7 +420,6 @@ migrate <- function(infile, meta, name) {
     "# 3) Clumping to get number of loci",
     clump_job,
     "\n",
-    "# 4) Stratified LDSC using scRNA human brain cell data",
     "\n ",
     "# 5) Generate code to run SbayesR for polygenic scores ",
     # sbayes_job,
@@ -432,7 +436,7 @@ migrate <- function(infile, meta, name) {
 
 #' Represent very small pvalues as minimum double number
 #'
-#' @param path filepath for gwas file
+#' @param paths filepath for gwas file
 #'
 #' @return writes out the gwas file
 #' @export
@@ -440,13 +444,10 @@ migrate <- function(infile, meta, name) {
 #' @examples \dontrun{
 #' correct_small_pval("/my_gwas/gwas.tsv.gz")
 #' }
-correct_small_pval <- function(path) {
-  data.table::fread(path) |>
-    dplyr::mutate(
-      P = as.numeric(P),
-      P = dplyr::if_else(P == 0, 2.225074e-308, P)
-      ) |>
-    data.table::fwrite(path, sep = "\t")
+correct_small_pval <- function(paths) {
 
+ first <- glue::glue("gunzip -c {paths[['clean']]} | awk -F '\\t' 'BEGIN{{OFS=\"\\t\"}}{{if (NR==1) {{for (i=1; i<=NF; i++) {{if ($i==\"P\") {{pcol=i; break}}}}}} else if ($pcol <  2.225074e-307) {{$pcol = 2.225074e-307}} {{print}}}}' | gzip > {paths[['temp']]}")
+ second <- glue::glue("mv {paths[['temp']]} {paths[['clean']]}")
+ c(first, second)
 
 }

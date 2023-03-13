@@ -118,6 +118,16 @@ parse_sig_snps <- function(path){
     dplyr::select(2,1)
 }
 
+#' Read in the results of partitioned LDSC into tidy format
+#'
+#' @param path to .results file from partitioned LDSC
+#'
+#' @return a tibble with one row: results for L2_L1 annotation
+#' @export
+#'
+#' @examples \dontrun{
+#' parse_pldsc("/pldsc/amygdala_excitatory.Results")
+#' }
 parse_pldsc <- function(path) {
   name <- janitor::make_clean_names(
     fs::path_file(path) %>% stringr::str_remove(".results")
@@ -128,6 +138,16 @@ parse_pldsc <- function(path) {
     dplyr::mutate(category =  name)
 }
 
+#' Read in the results of magma geneset into tidy format
+#'
+#' @param path filepath for gsa.out file from magma-geneset analysis
+#'
+#' @return a tibble
+#' @export
+#'
+#' @examples \dontrun{
+#' parse_magma_geneset("/magma_geneset/amygdala_excitatory.gsa.out")
+#' }
 parse_magma_geneset <- function(path){
   dplyr::tibble(data.table::fread(path, skip = 3)) |>
     dplyr::mutate(VARIABLE = janitor::make_clean_names(FULL_NAME)) |>

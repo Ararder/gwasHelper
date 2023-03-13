@@ -89,7 +89,7 @@ sbayes_filters <- function(df, N, freq_path){
   if(!"EAF" %in% colnames(df)) {
     message("Frequency missing. Adding 1000kg eur freq")
     freq <- readr::read_tsv(freq_path)
-    df <- add_1000g_freq(df)
+    df <- add_1000g_freq(df=df, freq=freq)
   }
 
   print("Filtering to MAF >= 0.01 & MAF <= 0.99")
